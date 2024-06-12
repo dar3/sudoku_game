@@ -29,6 +29,10 @@ class LoginWindow(QWidget):
         self.setup()
 
 
+    def save_config(self):
+        # Save the last saved file name to the configuration file
+        with open(self.CONFIG_FILE, 'w') as f:
+            json.dump({"last_saved_filename": self.last_saved_filename}, f)
     def load_config(self):
         # Load last saved filename to the configuration file
         try:
