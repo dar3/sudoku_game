@@ -24,9 +24,20 @@ class LoginWindow(QWidget):
         self.load_game_button = None
         self.exit_button = None
         self.last_saved_filename = None
+        self.load_config()
+        self.difficulty_slider = None
+        self.setup()
 
 
-
+    def load_config(self):
+        # Load last saved filename to the configuration file
+        try:
+            with open(self.CONFIG_FILE, 'r') as f:
+                config = json.load(f)
+                self.last_saved_filename = config.get("last_saved_filename")
+        except FileNotFoundError:
+            pass
+        # Ignore if the config file does not exist
 
 class GameWidget(QWidget):
     square = 3
