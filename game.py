@@ -174,6 +174,14 @@ class LoginWindow(QWidget):
     def update_difficulty(self, value):
         self.game_display.difficulty = value
 
+class GameSolverThread(threading.Thread):
+    def __init__(self, game_widget):
+        super().__init__()
+        self.game_widget = game_widget
+
+    def run(self):
+        self.game_widget.solve_with_delay()
+
 class GameWidget(QWidget):
     square = 3
     dimension = square * square
@@ -181,3 +189,58 @@ class GameWidget(QWidget):
     cell_length = side // dimension
     thick_line = 8
     thin_line = 2
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.solve_timer = QTimer()
+        self.solve_i = self.solve_j = 0
+        self.setFixedSize(self.side, self.side)
+        self.grid = None
+        self.begin_grid = None
+        self.key_count = 1
+        self.x = self.y = 0
+        self.timer = QTimer()
+        self.timer.timeout.connect(self.update_game)
+        self.setFocusPolicy(Qt.StrongFocus)  # Set focus policy to accept key events
+        self.parent = parent
+        self.difficulty = 1
+        self.solve_thread = None
+        self.left_cells = self.dimension * self.dimension
+
+    def save_game(self, file_name):
+        game_state = self.serialize_game_state()
+        with open(file_name, 'w') as file:
+            json.dump(game_state, file)
+        self.parent.error_label.setText("Game saved successfully into file " + file_name)
+
+    def load_game(self, file_name):
+        try:
+            with open(file_name, 'r') as file:
+                game_state = json.load(file)
+            self.deserialize_game_state(game_state)
+            self.update_game()
+            self.parent.error_label.setText("Game loaded successfully")
+        except FileNotFoundError:
+            self.parent.error_label.setText("No saved game found")
+        except json.JSONDecodeError:
+            self.parent.error_label.setText("Error loading saved game")
+
+    def serialize_game_state(self):
+        game_state = {
+            'grid': self.grid,
+            'begin_grid': self.begin_grid,
+            'x': self.x,
+            'y': self.y,
+            'key_count': self.key_count,
+            'left_cells': self.left_cells,
+
+        }
+        return game_state
+
+    def deserialize_game_state(self, game_state):
+        self.grid = game_state['grid']
+        self.begin_grid = game_state['begin_grid']
+        self.x = game_state['x']
+        self.y = game_state['y']
+        self.key_count = game_state['key_count']
+        self.left_cells = game_state['left_cells']
