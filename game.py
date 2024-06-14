@@ -298,3 +298,163 @@ class GameWidget(QWidget):
 
     def update_game(self):
         self.update()
+
+        def paintEvent(self, event):
+            painter = QPainter(self)
+            self.draw_grids(painter)
+            self.highlight_cell(painter)
+
+        def draw_grids(self, painter):
+            font = QFont("Arial", self.cell_length // 2)
+            painter.setFont(font)
+            for i in range(self.dimension):
+                for j in range(self.dimension):
+                    if self.grid[i][j] != 0:
+                        rect = QRect(i * self.cell_length, j * self.cell_length, self.cell_length, self.cell_length)
+                        if self.is_starting_position(i, j):
+                            # color of the starting cells
+                            painter.fillRect(rect, QColor(0, 153, 0))
+                            painter.drawText(rect, Qt.AlignCenter, str(self.grid[i][j]))
+                        else:
+                            # color of other cells
+                            painter.fillRect(rect, QColor(0, 153, 153))
+                            painter.drawText(rect, Qt.AlignCenter, str(self.grid[i][j]))
+            for i in range(self.dimension + 1):
+                thickness = self.thick_line if i % self.square == 0 else self.thin_line
+                if i == 0:
+                    thickness = 2 * thickness
+                painter.setPen(QPen(QColor(0, 0, 0), thickness))
+                # horisontal lines
+                y_pos = i * self.cell_length
+                painter.drawLine(0, y_pos, self.side - thickness - 1, y_pos)
+                # vertical lines
+                x_pos = i * self.cell_length
+                painter.drawLine(x_pos, 0, x_pos, self.side - self.thick_line - 2)
+
+        def is_starting_position(self, i, j):
+            return self.begin_grid[i][j] != 0
+
+        def highlight_cell(self, painter):
+            painter.setPen(QPen(QColor(255, 0, 255), self.thick_line))
+            for i in range(2):
+                # up_horizontal_line
+                painter.drawLine(self.x * self.cell_length, (self.y + i) * self.cell_length,
+                                 self.x * self.cell_length + self.cell_length, (self.y + i) * self.cell_length)
+                painter.drawLine((self.x + i) * self.cell_length, self.y * self.cell_length,
+                                 (self.x + i) * self.cell_length, self.y * self.cell_length + self.cell_length)
+
+        def keyPressEvent(self, event):
+            if event.key() == Qt.Key_Left:
+                self.x = max(0, self.x - 1)
+            elif event.key() == Qt.Key_Right:
+                self.x = min(8, self.x + 1)
+            elif event.key() == Qt.Key_Up:
+                self.y = max(0, self.y - 1)
+            elif event.key() == Qt.Key_Down:
+                self.y = min(8, self.y + 1)
+            elif event.key() == Qt.Key_R:
+                self.grid = self.get_copy_from_grid(self.begin_grid)
+                self.update_game()
+            elif event.key() == Qt.Key_Delete or event.key() == Qt.Key_Backspace:
+                if not self.is_starting_position(self.x, self.y):
+                    self.grid[self.x][self.y] = 0
+                    self.left_cells += 1
+            elif Qt.Key_1 <= event.key() <= Qt.Key_9:
+                num = event.key() - Qt.Key_0
+                if not self.is_starting_position(self.x, self.y):
+                    if self.is_allowed_here(self.grid, self.x, self.y, num):
+                        self.grid[self.x][self.y] = num
+                        self.left_cells -= 1
+                        self.parent.error_label.clear()  # Clear the error message if the move is valid
+                    else:
+                        self.parent.error_label.setText("Invalid move")
+            elif event.key() == Qt.Key_Return or event.key() == Qt.Key_Enter:
+                self.solve_with_delay()
+                self.left_cells = 0
+                self.update_game()
+            if self.left_cells == 0:
+                self.parent.error_label.setText("Gratulation!!! You solved the task.")
+
+            self.update_game()
+
+        def solve_with_delay(self):
+            self.grid = self.get_copy_from_grid(self.begin_grid)
+            self.update_game()
+            self.solve_i, self.solve_j = 0, 0
+            self.solve_timer.timeout.connect(self.step)
+            self.solve_timer.start(100)  # Adjust the delay as necessary
+            print("Finished")
+
+        def step(self):
+            print(f"Stepping: solve_i={self.solve_i}, solve_j={self.solve_j}")
+            while self.solve_i < self.dimension and self.grid[self.solve_i][self.solve_j] != 0:
+                self.solve_j += 1
+                if self.solve_j == self.dimension:
+                    self.solve_j = 0
+                    self.solve_i += 1
+                print(f"Skipping filled cell: solve_i={self.solve_i}, solve_j={self.solve_j}")
+
+            if self.solve_i < self.dimension:
+                num_found = False
+                for val in range(1, self.dimension + 1):
+                    if self.is_allowed_here(self.grid, self.solve_i, self.solve_j, val):
+                        print(f"Trying value {val} at solve_i={self.solve_i}, solve_j={self.solve_j}")
+                        self.grid[self.solve_i][self.solve_j] = val
+                        self.update()
+                        num_found = True
+                        break
+                if not num_found:
+                    self.grid[self.solve_i][self.solve_j] = 0
+                self.solve_j += 1
+                if self.solve_j == self.dimension:
+                    self.solve_j = 0
+                    self.solve_i += 1
+            else:
+                self.solve_timer.stop()
+                print("solve_timer was stopped")
+
+        def mousePressEvent(self, event: QMouseEvent):
+            if event.button() == Qt.LeftButton:
+                self.x = int(event.position().x() // (self.side // self.dimension))
+                self.y = int(event.position().y() // (self.side // self.dimension))
+                self.update_game()
+
+        def solve(self, grid, i, j):
+            # print("Solve count: ", self.key_count)
+            # self.key_count += 1
+            while grid[i][j] != 0:
+                if i < self.dimension - 1:
+                    i += 1
+                elif i == self.dimension - 1 and j < self.dimension - 1:
+                    i = 0
+                    j += 1
+                elif i == self.dimension - 1 and j == self.dimension - 1:
+                    return True
+            for it in range(1, 10):
+                if self.is_allowed_here(grid, i, j, it):
+                    grid[i][j] = it
+                    self.x, self.y = i, j
+                    self.update_game()
+                    if self.solve(grid, i, j):
+                        return True
+                    else:
+                        grid[i][j] = 0
+                    self.update_game()
+            return False
+
+        def get_copy_from_grid(self, origin_grid):
+            # create grid with zeros
+            copy_grid = [[0 for _ in range(self.dimension)] for _ in range(self.dimension)]
+            for i in range(len(copy_grid)):
+                for j in range(len(copy_grid[0])):
+                    copy_grid[i][j] = origin_grid[i][j]
+            return copy_grid
+
+    if __name__ == '__main__':
+        app = QApplication([])
+        app_icon = QIcon("icon.ico")
+        app.setWindowIcon(app_icon)
+
+        login_window = LoginWindow()
+
+        app.exec()
