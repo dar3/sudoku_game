@@ -131,7 +131,56 @@ class LoginWindow(QWidget):
         self.game_display.setVisible(False)  # Initially hide the game display
 
         self.setFixedSize(self.window_width, self.window_height)
-        self.setWindowTitle("Sudoku - PWR - projekt - Dariusz Szypka")
+        self.setWindowTitle("Sudoku Game - Dariusz Szypka")
+
+        self.setStyleSheet("""
+            QWidget {
+            background-color: #adaec4;
+                   }
+            QPushButton {
+            background-color: #4CAF50; 
+            color: white; 
+            border: none; 
+            padding: 10px 20px; 
+            text-align: center; 
+            text-decoration: none; 
+            display: inline-block; 
+            font-size: 16px; 
+            margin: 4px 2px; 
+            transition-duration: 0.4s; 
+            cursor: pointer; /* Pointer cursor on hover */
+            max-width: 150px; /* Maximum width */
+            max-height: 40px; /* Maximum height */
+                }
+            QPushButton:hover {
+            background-color: #ebd9bc; 
+            color: black; /* Black text on hover */
+                }
+            QLabel {
+            color: #333;
+                }
+            QSlider::groove:horizontal {
+                border: 1px solid #bbb;
+                background: #ebd9bc;
+                height: 10px;
+                border-radius: 4px;
+                   }
+            QSlider::sub-page:horizontal {
+                background: #4CAF50;
+                border: 1px solid #4CAF50;
+                height: 10px;
+                border-radius: 4px;
+                   }
+            QSlider::handle:horizontal {
+                background: #000000;
+                border: 1px solid #4CAF50;
+                width: 20px;
+                height: 20px;
+                border-radius: 10px;
+                margin: -5px 0;
+                   }
+               """)
+
         self.show()
 
     def start_game(self):
@@ -376,7 +425,7 @@ class GameWidget(QWidget):
             self.left_cells = 0
             self.update_game()
         if self.left_cells == 0:
-            self.parent.error_label.setText("Gratulation!!! You solved the task.")
+            self.parent.error_label.setText("Congratulation!!! You solved the task.")
 
         self.update_game()
 
