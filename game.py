@@ -244,3 +244,57 @@ class GameWidget(QWidget):
         self.y = game_state['y']
         self.key_count = game_state['key_count']
         self.left_cells = game_state['left_cells']
+
+    def create_grid(self):
+        grid = [[6, 1, 5, 2, 0, 0, 0, 0, 0],
+                [0, 0, 7, 1, 0, 0, 0, 6, 0],
+                [0, 0, 0, 0, 0, 0, 1, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 9, 0],
+                [5, 0, 0, 0, 0, 2, 8, 1, 3],
+                [0, 0, 9, 0, 7, 0, 0, 0, 0],
+                [8, 0, 0, 7, 2, 0, 9, 0, 6],
+                [0, 0, 0, 0, 1, 0, 2, 0, 4],
+                [2, 0, 0, 8, 0, 0, 7, 0, 0]
+                ]
+
+        self.solve(grid, 0, 0)
+        grid, count_zeros = self.leverage_grid(grid, self.difficulty)
+        self.left_cells = count_zeros
+        self.begin_grid = self.get_copy_from_grid(grid)
+        print(self.begin_grid)
+        return grid
+
+    def leverage_grid(self, grid, level):
+        # Adjust the grid by removing some numbers based on the level of difficulty
+        cells_to_remove = int(self.dimension * self.dimension * level / 4 - 6)
+        count_zeros = 0
+        for _ in range(cells_to_remove):
+            x = random.randint(0, self.dimension - 1)
+            y = random.randint(0, self.dimension - 1)
+            while grid[x][y] == 0:
+                x = random.randint(0, self.dimension - 1)
+                y = random.randint(0, self.dimension - 1)
+            grid[x][y] = 0
+            count_zeros += 1
+        return grid, count_zeros
+
+    def is_allowed_here(self, m, i, j, num):
+        for it in range(self.dimension):
+            if m[i][it] == num or m[it][j] == num:
+                return False
+        it, jt = i // self.square, j // self.square
+        for i in range(it * self.square, it * self.square + self.square):
+            for j in range(jt * self.square, jt * self.square + self.square):
+                if m[i][j] == num:
+                    return False
+        return True
+
+    def start_game(self):
+        self.grid = self.create_grid()
+        self.x = self.y = 0
+        self.update_game()
+        self.timer.start(1000 // 60)  # 60 FPS
+        self.setFocus()  # Give focus to the GameWidget after starting the game
+
+    def update_game(self):
+        self.update()
