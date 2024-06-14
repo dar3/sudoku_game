@@ -133,6 +133,47 @@ class LoginWindow(QWidget):
         self.setWindowTitle("Sudoku Game - Dariusz Szypka")
         self.show()
 
+    def start_game(self):
+        self.error_label.clear()  # Clear any previous error messages
+        self.game_display.start_game()
+        self.game_display.setVisible(True)  # Show the game display
+        self.save_game_button.setEnabled(True)  # Enable the save game button
+        self.game_display.setFocus()  # Give focus to the GameWidget after starting the game
+
+    def save_game(self):
+        self.error_label.clear()  # Clear any previous error messages
+
+        # Generate the suggested filename
+        current_time = datetime.now().strftime("%Y%m%d-%H%M%S")
+        suggested_filename = f"{current_time}.json"
+
+        # Prompt the user for the filename
+        filename, ok = QInputDialog.getText(self, "Save Game", "Enter filename:", text=suggested_filename)
+
+        if ok and filename:
+            self.game_display.save_game(filename)
+            self.last_saved_filename = filename
+            self.save_config()
+
+    def load_game(self):
+        self.error_label.clear()  # Clear any previous error messages
+
+        # Suggest the last saved file name
+        suggested_filename = self.last_saved_filename if self.last_saved_filename else "default_filename.json"
+
+        # Open a file dialog to select the file to load
+        filename, _ = QFileDialog.getOpenFileName(self, "Load game", suggested_filename,
+                                                  "JSON Files (*.json);;All Files (*)")
+        if filename:
+            # Load the selected file
+            self.game_display.load_game(filename)
+            self.save_game_button.setEnabled(True)  # Enable the save game button
+            self.game_display.setVisible(True)  # Show the game display
+            self.game_display.setFocus()  # Give focus to the GameWidget after starting the game
+
+    def update_difficulty(self, value):
+        self.game_display.difficulty = value
+
 class GameWidget(QWidget):
     square = 3
     dimension = square * square
