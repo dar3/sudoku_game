@@ -45,8 +45,7 @@ class LoginWindow(QWidget):
     def exit_app(self):
         reply = QMessageBox.question(self, 'Quit Application',
                                      "<b>Are you sure you want to quit?</b>",
-                                     QMessageBox.Yes |  QMessageBox.No)
-
+                                     QMessageBox.Yes | QMessageBox.No)
         if reply == QMessageBox.Yes:
             QApplication.instance().quit()
 
@@ -100,7 +99,8 @@ class LoginWindow(QWidget):
 
         # Slider value update
         self.difficulty_slider.valueChanged.connect(self.update_difficulty)
-        self.difficulty_slider.valueChanged.connect(lambda value: self.slider_value_label.setText(f"Current Value: {value}"))
+        self.difficulty_slider.valueChanged.connect(
+            lambda value: self.slider_value_label.setText(f"Current Value: {value}"))
 
         self.instructions_label.setText(
             "Instructions:\n"
@@ -178,7 +178,6 @@ class LoginWindow(QWidget):
                 border-radius: 10px;
                 margin: -5px 0;
                    }
-                   
                """)
         self.show()
 
@@ -192,8 +191,7 @@ class LoginWindow(QWidget):
     def save_game(self):
         self.error_label.clear()  # Clear any previous error messages
 
-
-        current_time = datetime.now().strftime("%Y%m%d-%H%M%S")
+        current_time = datetime.now().strftime("%Y%grid%d-%H%M%S")
         suggested_filename = f"{current_time}.json"
 
         # Prompt the user for the filename
@@ -241,7 +239,6 @@ class GameWidget(QWidget):
         self.setFixedSize(self.side, self.side)
         self.grid = None
         self.begin_grid = None
-        self.key_count = 1
         self.x = self.y = 0
         self.timer = QTimer()
         self.timer.timeout.connect(self.update_game)
@@ -252,6 +249,7 @@ class GameWidget(QWidget):
         self.left_cells = self.dimension * self.dimension
 
     def save_game(self, file_name):
+        # writing to the hard drive
         game_state = self.serialize_game_state()
         with open(file_name, 'w') as file:
             json.dump(game_state, file)
@@ -275,9 +273,7 @@ class GameWidget(QWidget):
             'begin_grid': self.begin_grid,
             'x': self.x,
             'y': self.y,
-            'key_count': self.key_count,
             'left_cells': self.left_cells,
-
         }
         return game_state
 
@@ -286,20 +282,22 @@ class GameWidget(QWidget):
         self.begin_grid = game_state['begin_grid']
         self.x = game_state['x']
         self.y = game_state['y']
-        self.key_count = game_state['key_count']
         self.left_cells = game_state['left_cells']
 
     def create_grid(self):
-     # create grid with zeros
+        # create grid with zeros
         grid = [[0 for _ in range(self.dimension)] for _ in range(self.dimension)]
         x = y = 0
+        # filling with numbers from 1-9 only first row (pierwszy rzad)
         num = random.randint(1, self.dimension)
         for i in range(self.dimension):
             while not self.is_allowed_here(grid, x, y, num):
                 num = random.randint(1, self.dimension)
             grid[x][y] = num
             x += 1
+        #  solving whole table to check if it can be solved
         self.solve(grid, 0, 0)
+        # here we run leverage_grid and take out some of the squares
         grid, count_zeros = self.leverage_grid(grid, self.difficulty)
         self.left_cells = count_zeros
         self.begin_grid = self.get_copy_from_grid(grid)
@@ -307,6 +305,9 @@ class GameWidget(QWidget):
 
     def leverage_grid(self, grid, level):
         # Adjust the grid by removing some numbers based on the level of difficulty
+        # we have fours because level 3 gives me 3/4 deleted squares
+        # if we deleted more, it's very difficult to solve
+        # - 6 to make it easier
         cells_to_remove = int(self.dimension * self.dimension * level / 4 - 6)
         count_zeros = 0
         for _ in range(cells_to_remove):
@@ -319,14 +320,16 @@ class GameWidget(QWidget):
             count_zeros += 1
         return grid, count_zeros
 
-    def is_allowed_here(self, m, i, j, num):
+    def is_allowed_here(self, grid, i, j, num):
         for it in range(self.dimension):
-            if m[i][it] == num or m[it][j] == num:
+            # sprawdzamy po indeksach poziomo i  pionowo
+            if grid[i][it] == num or grid[it][j] == num:
                 return False
+        #     checking in 3x3 squares
         it, jt = i // self.square, j // self.square
         for i in range(it * self.square, it * self.square + self.square):
             for j in range(jt * self.square, jt * self.square + self.square):
-                if m[i][j] == num:
+                if grid[i][j] == num:
                     return False
         return True
 
@@ -335,6 +338,7 @@ class GameWidget(QWidget):
         self.x = self.y = 0
         self.update_game()
         self.timer.start(1000 // 60)  # 60 FPS
+        # making grid active
         self.setFocus()  # Give focus to the GameWidget after starting the game
 
     def update_game(self):
@@ -372,6 +376,7 @@ class GameWidget(QWidget):
             x_pos = i * self.cell_length
             painter.drawLine(x_pos, 0, x_pos, self.side - self.thick_line - 2)
 
+    # bool if it was in starting grid
     def is_starting_position(self, i, j):
         return self.begin_grid[i][j] != 0
 
@@ -385,6 +390,7 @@ class GameWidget(QWidget):
                              (self.x + i) * self.cell_length, self.y * self.cell_length + self.cell_length)
 
     def keyPressEvent(self, event):
+        # restriction to get out of bound of grid
         if event.key() == Qt.Key_Left:
             self.x = max(0, self.x - 1)
         elif event.key() == Qt.Key_Right:
@@ -456,12 +462,16 @@ class GameWidget(QWidget):
         self.grid = self.get_copy_from_grid(self.begin_grid)
         self.update_game()
         self.solve_i, self.solve_j = 0, 0
+        # we put numbers in order if ok, we go further
+        # if not we go back (we use stack x,y, number)
         self.solve_stack = []  # Stack to keep track of cells being solved
         self.solve_timer = QTimer()
         self.solve_timer.timeout.connect(self.step_solve)
+        # delay of solving in milliseconds
         self.solve_timer.start(5)  # Adjust the delay as necessary
 
     def step_solve(self):
+        # when the last cell is solved this if runs
         if self.solve_i >= self.dimension:
             self.solve_timer.stop()
             self.parent.error_label.setText("<b> Automatically solved the puzzle step-by-step</b>")
@@ -474,28 +484,34 @@ class GameWidget(QWidget):
                 self.solve_j = 0
                 self.solve_i += 1
 
+        # checking if we didn't exceed our grid
         if self.solve_i < self.dimension:
             if self.num_found:
                 self.num_found = False
                 self.start_val = 1
 
+            # we go from 1 to 9
             for val in range(self.start_val, self.dimension + 1):
                 if self.is_allowed_here(self.grid, self.solve_i, self.solve_j, val):
                     self.grid[self.solve_i][self.solve_j] = val
                     self.left_cells -= 1
                     self.solve_stack.append((self.solve_i, self.solve_j, val))  # Save the cell state
                     self.update()
+                    # if we found right number we end loop
                     self.num_found = True
                     break
 
             if not self.num_found:
                 if self.solve_stack:
+                    # we use last position to go back
                     last_i, last_j, last_val = self.solve_stack.pop()
                     self.grid[last_i][last_j] = 0
                     self.left_cells += 1
+                    # previous cell value
                     self.start_val = last_val + 1
                     self.solve_i, self.solve_j = last_i, last_j
                     self.solve_j -= 1  # Move back to try next value
+                    # to not get out of left bound on the grid
                     if self.solve_j < 0:
                         self.solve_i -= 1
                         self.solve_j = self.dimension - 1
